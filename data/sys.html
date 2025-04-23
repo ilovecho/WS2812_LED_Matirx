@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>모바일용 JSON Form 편집기</title>
+  <style>
+    /* 공통 배경·텍스트 스타일 (WS2812 예제와 동일) */
+    body {
+      margin: 0;
+      padding: 1rem;
+      font-family: sans-serif;
+      background: #111;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    h2 {
+      margin: 0;
+      font-size: 1.2rem;
+      text-align: center;
+      color: #5af;
+    }
+    /* 폼 컨테이너 */
+    #formContainer {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    #formContainer label {
+      display: flex;
+      flex-direction: column;
+      font-size: 0.9rem;
+    }
+    #formContainer input {
+      margin-top: 0.25rem;
+      padding: 0.5rem;
+      font-size: 1rem;
+      background: #222;
+      color: #eee;
+      border: 1px solid #444;
+      border-radius: 4px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    #formContainer input:focus {
+      outline: 2px solid #5af;
+    }
+    /* 버튼 스타일 */
+    button {
+      padding: 0.75rem;
+      font-size: 1rem;
+      background: #5af;
+      color: #111;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    button:active {
+      background: #48c;
+    }
+    button:focus {
+      outline: 2px solid #5af;
+    }
+    /* JSON textarea & 관리 버튼 숨김 (모바일 전용) */
+    #jsonInput,
+    #loadBtn,
+    #saveBtn {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h2>설정값 수정</h2>
+
+  <div id="formContainer">
+    <!-- buildForm()가 label+input을 삽입 -->
+  </div>
+  
+  <button id="sendBtn">🚀 서버로 전송</button>
+
+  <!-- 개발용 JSON 관리 요소: 모바일에선 숨김 -->
+  <textarea id="jsonInput" rows="10"></textarea>
+  <button id="loadBtn">JSON → 폼 재생성</button>
+  <button id="saveBtn">폼 → JSON 저장</button>
+
+  <script>
+    const jsonInput     = document.getElementById('jsonInput');
+    const loadBtn       = document.getElementById('loadBtn');
+    const saveBtn       = document.getElementById('saveBtn');
+    const sendBtn       = document.getElementById('sendBtn');
+    const formContainer = document.getElementById('formContainer');
+
+    function buildForm(data) {
+      formContainer.innerHTML = '';
+      Object.entries(data).forEach(([key, value]) => {
+        const label = document.createElement('label');
+        label.textContent = key;
+        const input = document.createElement('input');
+        input.id    = key + 'Input';
+        input.name  = key;
+        if (typeof value === 'number') {
+          input.type  = 'number';
+          input.value = value;
+        } else {
+          input.type  = 'text';
+          input.value = value == null ? '' : value;
+        }
+        label.appendChild(input);
+        formContainer.appendChild(label);
+      });
+    }
+
+    async function loadSystemConfig() {
+      const payload = { func: 'getcfg' };
+      try {
+        const res  = await fetch('/ctl', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        const data = await res.json();
+        jsonInput.value = JSON.stringify(data, null, 2);
+        buildForm(data);
+      } catch (err) {
+        alert('서버 응답 오류:\n' + err);
+      }
+    }
+
+    sendBtn.addEventListener('click', async () => {
+      const payload = { func: 'setcfg' };
+      formContainer.querySelectorAll('input').forEach(input => {
+        let v = input.value;
+        if (input.type === 'number') v = v === '' ? null : Number(v);
+        payload[input.name] = v;
+      });
+      try {
+        const res = await fetch('/ctl', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        await loadSystemConfig();
+      } catch (err) {
+        alert('전송 실패:\n' + err);
+      }
+    });
+
+    window.addEventListener('DOMContentLoaded', loadSystemConfig);
+  </script>
+</body>
+</html>

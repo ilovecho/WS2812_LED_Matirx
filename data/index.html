@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WS2812 LED Matrix Text</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 1rem;
+      font-family: sans-serif;
+      background: #111;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1rem;
+    }
+    h3 {
+      text-align: center;
+      margin: 0 0 1rem;
+      font-size: 1.5rem;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0.5rem;
+    }
+    label {
+      display: flex;
+      flex-direction: column;
+      font-size: 0.9rem;
+    }
+    input, button {
+      padding: 0.5rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 4px;
+    }
+    input[type="number"] {
+      -moz-appearance: textfield;
+    }
+    input[type="color"] {
+      padding: 0.05rem;
+    }
+    input:focus, button:focus {
+      outline: 2px solid #5af;
+    }
+    button {
+      background: #5af;
+      color: #111;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 0.5rem;
+    }
+    button:active {
+      background: #48c;
+    }
+    canvas {
+      width: 100%;
+      background: #000;
+      border: 1px solid #444;
+      aspect-ratio: attr(data-aspect) / 1;
+    }
+  </style>
+</head>
+<body>
+  <h3>LED Matrix Text Sender</h3>
+
+  <div class="controls">
+    <label>Text
+      <input type="text" id="textInput" value="HELLO">
+    </label>
+    <label>Font
+      <input type="text" id="fontInput" value="DungGeunMo">
+    </label>
+    <label>Size
+      <input type="number" id="fontsizeInput" value="16">
+    </label>
+    <label>Offset
+      <input type="number" id="fontOffsetInput" value="1">
+    </label>
+    <label>Spacing
+      <input type="number" id="letterSpacingInput" value="2">
+    </label>
+    <label>Action
+      <input type="number" id="actionInput" value="0">
+    </label>
+    <label>Bright
+      <input type="number" id="brightInput" value="16">
+    </label>
+    <label>Delay
+      <input type="number" id="delayInput" value="3">
+    </label>
+    <label>Text Color
+      <input type="color" id="textColor" value="#ffffff">
+    </label>
+    <label>BG Color
+      <input type="color" id="bgColor" value="#000000">
+    </label>
+    <label>Width
+      <input type="number" id="widthInput" value="80">
+    </label>
+    <label>Height
+      <input type="number" id="heightInput" value="16">
+    </label>
+  </div>
+
+  <button id="sendBtn">Send to LED</button>
+
+  <canvas id="canvas" data-aspect="80/16"></canvas>
+  <canvas id="d_canvas" style="display:none;"></canvas>
+
+<script>
+document.getElementById('sendBtn').addEventListener('click', send);
+
+function send() {
+  const text = document.getElementById('textInput').value;
+  const w = +document.getElementById('widthInput').value;
+  const h = +document.getElementById('heightInput').value;
+  const font = document.getElementById('fontInput').value;
+  const size = +document.getElementById('fontsizeInput').value;
+  const offset = +document.getElementById('fontOffsetInput').value;
+  const spacing = +document.getElementById('letterSpacingInput').value;
+  const action = +document.getElementById('actionInput').value;
+  const bright = +document.getElementById('brightInput').value;
+  const delayVal = +document.getElementById('delayInput').value;
+  const txtCol = document.getElementById('textColor').value;
+  const bgCol = document.getElementById('bgColor').value;
+
+  const canvas = document.getElementById('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = bgCol;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.font = `${size}px ${font}, sans-serif`;
+  ctx.fillStyle = txtCol;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  const x = w / 2;
+  const y = h / 2 + offset;
+  ctx.fillText(text, x, y);
+  
+  // draw small offscreen for raw pixel grab
+  const dst = document.getElementById('d_canvas');
+  const dctx = dst.getContext('2d');
+  dst.width = w;
+  dst.height = h;
+  dctx.drawImage(canvas, 0, 0, w, h);
+  
+  const img = dctx.getImageData(0, 0, w, h).data;
+  const rgb = [];
+  for (let i = 0; i < img.length; i += 4) {
+    rgb.push(img[i], img[i+1], img[i+2]);
+  }
+
+  const header = 7;
+  const buf = new Uint8Array(header + rgb.length);
+  buf[0] = 'B'.charCodeAt(0);
+  buf[1] = header;
+  buf[2] = w;
+  buf[3] = h;
+  buf[4] = action;
+  buf[5] = bright;
+  buf[6] = delayVal;
+  buf.set(rgb, header);
+
+  fetch('/upload', {
+    method: 'POST',
+    headers: {'Content-Type':'application/octet-stream'},
+    body: buf
+  })
+  .then(r => r.text())
+  .catch(e => alert('Error: ' + e));
+}
+
+// Load saved config
+async function loadConfig() {
+  try {
+    const res = await fetch('/ctl', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({func:'getcfg'})
+    });
+    const data = await res.json();
+    for (let k in data) {
+      const el = document.getElementById(k+'Input');
+      if (el) el.value = data[k];
+    }
+  } catch(e) {
+    console.warn('Config load failed', e);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', loadConfig);
+</script>
+</body>
+</html>

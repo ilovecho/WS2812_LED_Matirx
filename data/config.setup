@@ -1,0 +1,12 @@
+{
+  "wifiSSID": "test24",
+  "wifiPASS": "20622065",
+  "apSSID":   "WS2812_AP",
+  "apPASS":   "",
+  "width":    32,
+  "height":   8,
+  "fontsize":   10,
+  "account": "admin",
+  "passwd": "1234",
+  "passkey": "fyVz3yqOgjWqb4K"
+}

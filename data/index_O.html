@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>WS2812 LED Matrix Text</title>
+  <style>
+    textarea {
+      width: 100%;
+      height: 200px;
+      font-family: monospace;
+      white-space: pre;
+    }
+    canvas {
+      border: 1px solid #000;
+      margin-top: 10px;
+    }
+    .input {
+      width:3em;
+    }
+    @font-face {
+      font-family: 'DungGeunMo';
+      src: url('DungGeunMo Normal.woff2') format('woff2');
+      #src: url('neodgm.woff') format('woff');
+      #src: url('DungGeunMo.woff') format('woff');
+      #src: url('courer.fon') format('fon');
+      font-weight: bold;
+      font-style: normal;
+    }
+
+  </style>
+</head>
+<body>
+  <h3>LED Matrix Text Sender</h3>
+
+  <label>Text: <input type="text" id="textInput" value="HELLO"></label><br><br>
+  <label>Font: <input type="text" id="fontInput" value="DungGeunMo"></label>
+  <label>Fontsize: <input type="number" class="input" id="fontsizeInput" value="16"></label>
+  <label>Fontoffset: <input type="number" class="input" id="fontOffsetInput" value="1"></label>
+  <label>LetterSpace: <input type="number" class="input" id="letterSpacingInput" value="2"></label><br><br>
+
+  <label>Text Color: <input type="color" id="textColor" value="#ffffff"></label>
+  <label>Background Color: <input type="color" id="bgColor" value="#000000"></label><br><br>
+
+  <label>Width: <input type="number" class="input" id="widthInput" value="80"></label>
+  <label>Height: <input type="number" class="input" id="heightInput" value="16"></label><br><br>
+  <label>Action: <input type="number" class="input" id="actionInput" value="0"></label>
+  <label>Bright: <input type="number" class="input" id="brightInput" value="16"></label>
+  <label>Delay: <input type="number" class="input" id="delayInput" value="3"></label><br><br>
+
+  <button onclick="send()">Image to LED</button>
+  <canvas id="canvas"></canvas>
+  <canvas id="d_canvas"></canvas>
+
+ 
+<script>
+
+function tik() {
+  const text = document.getElementById('textInput').value;
+
+  const headSize = 3
+  const totalSize = headSize + text.length;
+  const buffer = new Uint8Array(totalSize);
+
+  buffer[0] = 'T'.charCodeAt(0);
+  buffer[1] = 3;v  // headSize
+  buffer[2] = action;
+
+  for (let i = 0; i < text.length; i++) {
+    buffer[headSize + i] = text[i];
+  }
+
+  fetch("/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/octet-stream" },
+    body: buffer
+  })
+  .then(res => res.text())
+  .catch(err => alert("Failed: " + err));
+}
+
+      
+function text() {
+
+  const text = document.getElementById('textInput').value;
+  const width = parseInt(document.getElementById('widthInput').value);
+  const height = parseInt(document.getElementById('heightInput').value);
+  const fontFamily   = document.getElementById('fontInput').value;
+  const fontSize = parseInt(document.getElementById('fontsizeInput').value);
+  const fontOffset = parseInt(document.getElementById('fontOffsetInput').value);
+  const letterSpacing = parseInt(document.getElementById('letterSpacingInput').value);
+  const action = parseInt(document.getElementById('actionInput').value);
+  const bright = parseInt(document.getElementById('brightInput').value);
+  const delay = parseInt(document.getElementById('delayInput').value);
+  const textColor = document.getElementById('textColor').value;
+  const bgColor = document.getElementById('bgColor').value;
+
+  const headSize = 14
+  const totalSize = headSize + text.length;
+  const buffer = new Uint8Array(totalSize);
+
+  buffer[0] = 'M'.charCodeAt(0);
+  buffer[1] = 14;  // headSize
+  buffer[2] = width;
+  buffer[3] = height;
+  buffer[4] = letterSpacing;
+  buffer[5] = action;
+  buffer[6] = bright;
+  buffer[7] = delay;
+  buffer[8] = parseInt(textColor.substr(1,2), 16);
+  buffer[9] = parseInt(textColor.substr(3,4), 16);
+  buffer[10] = parseInt(textColor.substr(5,6), 16);
+  buffer[11] = parseInt(bgColor.substr(1,2), 16);
+  buffer[12] = parseInt(bgColor.substr(3,4), 16);
+  buffer[13] = parseInt(bgColor.substr(5,6), 16);
+
+  for (let i = 0; i < text.length; i++) {
+    buffer[headSize + i] = text[i];
+  }
+
+  fetch("/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/octet-stream" },
+    body: buffer
+  })
+  .then(res => res.text())
+  .catch(err => alert("Failed: " + err));
+}
+
+function send() {
+
+  const text = document.getElementById('textInput').value;
+  const width = parseInt(document.getElementById('widthInput').value);
+  const height = parseInt(document.getElementById('heightInput').value);
+  const fontFamily   = document.getElementById('fontInput').value;
+  const fontSize = parseInt(document.getElementById('fontsizeInput').value);
+  const fontOffset = parseInt(document.getElementById('fontOffsetInput').value);
+  const letterSpacing = parseInt(document.getElementById('letterSpacingInput').value);
+  const action = parseInt(document.getElementById('actionInput').value);
+  const bright = parseInt(document.getElementById('brightInput').value);
+  const delay = parseInt(document.getElementById('delayInput').value);
+  const textColor = document.getElementById('textColor').value;
+  const bgColor = document.getElementById('bgColor').value;
+  const canvas = document.getElementById('canvas');
+
+  const SRATIO = 1
+  canvas.width = width * SRATIO;
+  canvas.height = height * SRATIO;
+  canvas.style.width = (width * SRATIO) + "px";
+  canvas.style.height = (height * SRATIO) + "px";
+
+  const ctx = canvas.getContext('2d');
+
+  document.fonts.load(`${fontSize * SRATIO}px ${fontFamily}`)
+    .then(() => {
+      // 표준 API
+      ctx.imageSmoothingEnabled = false;
+      // 벤더 프리픽스
+      ctx.webkitImageSmoothingEnabled = false;
+      ctx.mozImageSmoothingEnabled = false;
+      ctx.msImageSmoothingEnabled = false;
+        
+      // 배경색 채우기
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, 0, width * SRATIO, height * SRATIO);
+
+      // 텍스트 그리기
+      ctx.font = `${fontSize * SRATIO}px ${fontFamily}`;
+      //ctx.font = "18px 'Noto Sans KR'";// 한글 지원 폰트
+      //ctx.font = "16px 'Courier New'";
+      ctx.fillStyle = textColor;
+      ctx.letterSpacing = ''+ letterSpacing + 'px';
+      ctx.textAlign = 'center';
+
+      ctx.textBaseline = 'middle';
+      const centerX = width * SRATIO / 2;
+      const centerY = height * SRATIO / 2 + fontOffset;
+      ctx.fillText(text, centerX, centerY);
+
+      // 복제할 캔버스 만들기
+      const dst = document.getElementById('d_canvas');
+      const dCtx = dst.getContext('2d');
+      dst.width = width * 4;
+      dst.height = height * 4;
+
+      dCtx.drawImage(
+        canvas,
+        0, 0, canvas.width, canvas.height,      // src 전체
+        0, 0, dst.width, dst.height       // 25% 크기로
+      );
+  
+      // 픽셀 데이터 추출
+      const imgData = dCtx.getImageData(0, 0, width, height).data;
+      const rgb = [];
+      for (let i = 0; i < imgData.length; i += 4) {
+        rgb.push(imgData[i], imgData[i + 1], imgData[i + 2]); // R, G, B only
+      }
+
+      const headSize = 7
+      const totalSize = headSize + rgb.length;
+      const buffer = new Uint8Array(totalSize);
+
+      buffer[0] = 'B'.charCodeAt(0);
+      buffer[1] = 7;
+      buffer[2] = width;
+      buffer[3] = height;
+      buffer[4] = action;
+      buffer[5] = bright;
+      buffer[6] = delay;
+
+      for (let i = 0; i < rgb.length; i++) {
+        buffer[headSize + i] = rgb[i];
+      }
+
+      fetch("/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: buffer
+      })
+      .then(res => res.text())
+      .catch(err => alert("Failed: " + err));
+        
+    })
+    .catch(err => {
+      console.error('폰트 로딩 오류:', err);
+      // 폰트 로딩 실패 시 기본 폰트로 그리기
+      ctx.font = `${fontSize}px sans-serif`;
+      ctx.fillText('폰트를 불러오지 못했습니다.', 20, 20);
+    });
+}
+
+async function loadSystemConfig() {
+ 
+    const payload = {};
+    payload['func'] = 'getcfg';
+    
+    try {
+        const res = await fetch('/ctl', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        const data = await res.json();
+        
+        Object.entries(data).forEach(([key, value]) => {
+          input_id   = key + 'Input';
+          if (document.getElementById(input_id) !== null)
+                document.getElementById(input_id).value = value
+        });
+    } catch (err) {
+        alert('❌ 서버 전송 실패:\n' + err);
+    }
+}
+
+
+window.addEventListener('DOMContentLoaded', loadSystemConfig);
+
+</script>
+</body>
+</html>
